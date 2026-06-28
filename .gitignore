@@ -1,0 +1,31 @@
+# Keil MDK 编译产物
+*.o
+*.d
+*.crf
+*.dep
+*.iex
+*.axf
+*.elf
+*.map
+*.htm
+*.sct
+*.lnp
+*.tra
+
+# 用户本地设置
+*.uvguix.*
+*.uvoptx
+
+# 临时目录
+DebugConfig/
+Listings/
+Objects/
+JLinkLog.txt
+
+# Windows 系统文件
+Thumbs.db
+Desktop.ini
+
+# IDE 项目备份
+*.bak
+*.dep
