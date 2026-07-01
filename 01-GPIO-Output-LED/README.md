@@ -49,174 +49,150 @@
 ### 1. Delay.h
 
 ```c
-#ifndef __DELAY_H
-#define __DELAY_H
+#ifndef __DELAY_H                       // 判断是否尚未定义 __DELAY_H，防止延时函数头文件被重复包含
+#define __DELAY_H                       // 定义 __DELAY_H 标识，配合 #ifndef 实现头文件保护
 
-#include "stm32f10x.h"
+#include "stm32f10x.h"                  // 引入 STM32F10x 标准外设库头文件，提供 uint32_t 和寄存器结构体定义
 
-void Delay_us(uint32_t xus);
-void Delay_ms(uint32_t xms);
-void Delay_s(uint32_t xs);
+void Delay_us(uint32_t xus);            // 声明微秒级延时函数，参数 xus 表示需要延时的微秒数
+void Delay_ms(uint32_t xms);            // 声明毫秒级延时函数，参数 xms 表示需要延时的毫秒数
+void Delay_s(uint32_t xs);              // 声明秒级延时函数，参数 xs 表示需要延时的秒数
 
-#endif
+#endif                                  // 结束头文件保护条件编译
 ```
 
 ### 2. Delay.c
 
 ```c
-#include "Delay.h"
+#include "Delay.h"                      // 引入 Delay 模块头文件，使本文件中的函数定义与函数声明保持一致
 
-/**
-  * @brief  微秒级延时
-  * @param  xus 延时时长，单位：us
-  * @retval 无
-  */
-void Delay_us(uint32_t xus)
-{
-    SysTick->LOAD = 72 * xus;
-    SysTick->VAL = 0x00;
-    SysTick->CTRL = 0x00000005;
+void Delay_us(uint32_t xus)             // 定义微秒级延时函数，xus 表示需要延时的微秒数
+{                                       // Delay_us 函数体开始
+    SysTick->LOAD = 72 * xus;           // 设置 SysTick 重装载值，72MHz 系统时钟下 72 个计数约为 1 微秒
+    SysTick->VAL = 0x00;                // 清空当前计数值，确保每次延时都从设定的重装载值重新开始计数
+    SysTick->CTRL = 0x00000005;         // 启动 SysTick 定时器，并选择处理器时钟作为计数时钟源
 
-    while (!(SysTick->CTRL & 0x00010000));
+    while (!(SysTick->CTRL & 0x00010000));      // 等待 COUNTFLAG 位置 1，表示本次 SysTick 倒计时已经结束
 
-    SysTick->CTRL = 0x00000004;
-}
+    SysTick->CTRL = 0x00000004;         // 关闭 SysTick 计数功能，仅保留时钟源配置，避免持续计数影响后续延时
+}                                       // Delay_us 函数体结束
 
-/**
-  * @brief  毫秒级延时
-  * @param  xms 延时时长，单位：ms
-  * @retval 无
-  */
-void Delay_ms(uint32_t xms)
-{
-    while (xms--)
-    {
-        Delay_us(1000);
-    }
-}
+void Delay_ms(uint32_t xms)             // 定义毫秒级延时函数，xms 表示需要延时的毫秒数
+{                                       // Delay_ms 函数体开始
+    while (xms--)                       // 每循环一次延时 1ms，并将剩余毫秒数减 1，直到延时完成
+    {                                   // while 循环体开始
+        Delay_us(1000);                 // 调用 1000 微秒延时函数，累加形成 1 毫秒延时
+    }                                   // while 循环体结束
+}                                       // Delay_ms 函数体结束
 
-/**
-  * @brief  秒级延时
-  * @param  xs 延时时长，单位：s
-  * @retval 无
-  */
-void Delay_s(uint32_t xs)
-{
-    while (xs--)
-    {
-        Delay_ms(1000);
-    }
-}
+void Delay_s(uint32_t xs)               // 定义秒级延时函数，xs 表示需要延时的秒数
+{                                       // Delay_s 函数体开始
+    while (xs--)                        // 每循环一次延时 1s，并将剩余秒数减 1，直到延时完成
+    {                                   // while 循环体开始
+        Delay_ms(1000);                 // 调用 1000 毫秒延时函数，累加形成 1 秒延时
+    }                                   // while 循环体结束
+}                                       // Delay_s 函数体结束
 ```
 
 ### 3. LED 闪烁
 
 ```c
-#include "stm32f10x.h"
-#include "Delay.h"
+#include "stm32f10x.h"                  // 引入 STM32F10x 标准外设库头文件，提供 RCC 和 GPIO 相关函数声明
+#include "Delay.h"                      // 引入延时函数头文件，用于控制 LED 亮灭之间的时间间隔
 
-int main(void)
-{
-    // 1. 开启 GPIOA 时钟
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+int main(void)                          // 主函数入口，单片机复位后从这里开始执行用户程序
+{                                       // main 函数体开始
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);    // 开启 GPIOA 外设时钟，使 PA0 引脚配置和输出控制生效
 
-    // 2. 配置 PA0 为推挽输出
-    GPIO_InitTypeDef GPIO_InitStructure;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    GPIO_InitTypeDef GPIO_InitStructure;                     // 定义 GPIO 初始化结构体变量，用于保存 PA0 的模式、引脚和速度配置
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;         // 将 PA0 配置为推挽输出模式，使其可以主动输出高电平和低电平
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;                // 选择 GPIOA 的 0 号引脚 PA0，作为 LED 控制引脚
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;        // 设置 GPIO 输出速度为 50MHz，满足普通 LED 闪烁控制需求
+    GPIO_Init(GPIOA, &GPIO_InitStructure);                   // 按照结构体参数初始化 GPIOA，使 PA0 进入推挽输出状态
 
-    // 3. 循环控制 LED 闪烁
-    while (1)
-    {
-        GPIO_ResetBits(GPIOA, GPIO_Pin_0);    // PA0 输出低电平，LED 点亮
-        Delay_ms(500);
+    while (1)                           // 进入主循环，使 LED 闪烁逻辑持续重复执行
+    {                                   // while 循环体开始
+        GPIO_ResetBits(GPIOA, GPIO_Pin_0);                  // 将 PA0 输出低电平，由于本实验 LED 低电平点亮，因此该语句点亮 LED
+        Delay_ms(500);                  // 延时 500ms，让 LED 保持点亮状态一段时间，便于肉眼观察
 
-        GPIO_SetBits(GPIOA, GPIO_Pin_0);      // PA0 输出高电平，LED 熄灭
-        Delay_ms(500);
-    }
-}
+        GPIO_SetBits(GPIOA, GPIO_Pin_0);                    // 将 PA0 输出高电平，由于本实验 LED 低电平点亮，因此该语句熄灭 LED
+        Delay_ms(500);                  // 延时 500ms，让 LED 保持熄灭状态一段时间，形成周期性闪烁
+    }                                   // while 循环体结束，实际运行中程序不会跳出该循环
+}                                       // main 函数体结束
 ```
 
 ### 4. LED 流水灯
 
 ```c
-#include "stm32f10x.h"
-#include "Delay.h"
+#include "stm32f10x.h"                  // 引入 STM32F10x 标准外设库头文件，提供 RCC 和 GPIO 相关函数声明
+#include "Delay.h"                      // 引入延时函数头文件，用于控制流水灯每一步切换的时间间隔
 
-int main(void)
-{
-    // 1. 开启 GPIOA 时钟
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+int main(void)                          // 主函数入口，单片机复位后从这里开始执行用户程序
+{                                       // main 函数体开始
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);    // 开启 GPIOA 外设时钟，使 PA0 到 PA7 的配置和输出控制生效
 
-    // 2. 配置 PA0 ~ PA7 为推挽输出
-    GPIO_InitTypeDef GPIO_InitStructure;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-    GPIO_InitStructure.GPIO_Pin =
-        GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 |
-        GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    GPIO_InitTypeDef GPIO_InitStructure;                     // 定义 GPIO 初始化结构体变量，用于保存 PA0 到 PA7 的 GPIO 配置
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;         // 将 LED 所用引脚配置为推挽输出模式，便于主动控制每个 LED 的亮灭
+    GPIO_InitStructure.GPIO_Pin =                          // 开始选择多个 GPIO 引脚，下面通过按位或一次性包含 PA0 到 PA7
+        GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 |  // 选择 PA0、PA1、PA2、PA3 四个引脚作为前四个 LED 控制端
+        GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;   // 选择 PA4、PA5、PA6、PA7 四个引脚作为后四个 LED 控制端
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;        // 设置 GPIO 输出速度为 50MHz，满足流水灯快速切换需求
+    GPIO_Init(GPIOA, &GPIO_InitStructure);                   // 按照结构体参数初始化 GPIOA，使 PA0 到 PA7 进入推挽输出状态
 
-    // 3. 依次点亮 LED
-    while (1)
-    {
-        GPIO_Write(GPIOA, ~0x0001);
-        Delay_ms(200);
+    while (1)                           // 进入主循环，使流水灯效果持续重复执行
+    {                                   // while 循环体开始
+        GPIO_Write(GPIOA, ~0x0001);     // 向 GPIOA 输出取反后的 0x0001，使 PA0 对应 LED 点亮，其余 LED 熄灭或保持非点亮状态
+        Delay_ms(200);                  // 延时 200ms，让当前 LED 保持点亮，形成可见的流水停留时间
 
-        GPIO_Write(GPIOA, ~0x0002);
-        Delay_ms(200);
+        GPIO_Write(GPIOA, ~0x0002);     // 向 GPIOA 输出取反后的 0x0002，使 PA1 对应 LED 点亮，实现灯光移动到下一位
+        Delay_ms(200);                  // 延时 200ms，控制 PA1 对应 LED 的显示时间
 
-        GPIO_Write(GPIOA, ~0x0004);
-        Delay_ms(200);
+        GPIO_Write(GPIOA, ~0x0004);     // 向 GPIOA 输出取反后的 0x0004，使 PA2 对应 LED 点亮，继续形成流水效果
+        Delay_ms(200);                  // 延时 200ms，控制 PA2 对应 LED 的显示时间
 
-        GPIO_Write(GPIOA, ~0x0008);
-        Delay_ms(200);
+        GPIO_Write(GPIOA, ~0x0008);     // 向 GPIOA 输出取反后的 0x0008，使 PA3 对应 LED 点亮，灯光继续向后移动
+        Delay_ms(200);                  // 延时 200ms，控制 PA3 对应 LED 的显示时间
 
-        GPIO_Write(GPIOA, ~0x0010);
-        Delay_ms(200);
+        GPIO_Write(GPIOA, ~0x0010);     // 向 GPIOA 输出取反后的 0x0010，使 PA4 对应 LED 点亮，进入后半组 LED
+        Delay_ms(200);                  // 延时 200ms，控制 PA4 对应 LED 的显示时间
 
-        GPIO_Write(GPIOA, ~0x0020);
-        Delay_ms(200);
+        GPIO_Write(GPIOA, ~0x0020);     // 向 GPIOA 输出取反后的 0x0020，使 PA5 对应 LED 点亮，流水灯继续向右移动
+        Delay_ms(200);                  // 延时 200ms，控制 PA5 对应 LED 的显示时间
 
-        GPIO_Write(GPIOA, ~0x0040);
-        Delay_ms(200);
+        GPIO_Write(GPIOA, ~0x0040);     // 向 GPIOA 输出取反后的 0x0040，使 PA6 对应 LED 点亮，接近流水灯末端
+        Delay_ms(200);                  // 延时 200ms，控制 PA6 对应 LED 的显示时间
 
-        GPIO_Write(GPIOA, ~0x0080);
-        Delay_ms(200);
-    }
-}
+        GPIO_Write(GPIOA, ~0x0080);     // 向 GPIOA 输出取反后的 0x0080，使 PA7 对应 LED 点亮，完成一轮从 PA0 到 PA7 的移动
+        Delay_ms(200);                  // 延时 200ms，控制 PA7 对应 LED 的显示时间，然后回到循环开头重新开始
+    }                                   // while 循环体结束，实际运行中程序不会跳出该循环
+}                                       // main 函数体结束
 ```
 
 ### 5. 蜂鸣器控制
 
 ```c
-#include "stm32f10x.h"
-#include "Delay.h"
+#include "stm32f10x.h"                  // 引入 STM32F10x 标准外设库头文件，提供 RCC 和 GPIO 相关函数声明
+#include "Delay.h"                      // 引入延时函数头文件，用于控制蜂鸣器响和停的时间间隔
 
-int main(void)
-{
-    // 1. 开启 GPIOB 时钟
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+int main(void)                          // 主函数入口，单片机复位后从这里开始执行用户程序
+{                                       // main 函数体开始
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);    // 开启 GPIOB 外设时钟，使 PB12 引脚配置和输出控制生效
 
-    // 2. 配置 PB12 为推挽输出
-    GPIO_InitTypeDef GPIO_InitStructure;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOB, &GPIO_InitStructure);
+    GPIO_InitTypeDef GPIO_InitStructure;                     // 定义 GPIO 初始化结构体变量，用于保存 PB12 的 GPIO 配置
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;         // 将 PB12 配置为推挽输出模式，便于主动控制蜂鸣器高低电平
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;               // 选择 GPIOB 的 12 号引脚 PB12，作为蜂鸣器控制引脚
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;        // 设置 GPIO 输出速度为 50MHz，满足蜂鸣器开关控制需求
+    GPIO_Init(GPIOB, &GPIO_InitStructure);                   // 按照结构体参数初始化 GPIOB，使 PB12 进入推挽输出状态
 
-    // 3. 控制蜂鸣器间歇鸣叫
-    while (1)
-    {
-        GPIO_ResetBits(GPIOB, GPIO_Pin_12);   // PB12 输出低电平，蜂鸣器响
-        Delay_ms(500);
+    while (1)                           // 进入主循环，使蜂鸣器按固定节奏持续响停交替
+    {                                   // while 循环体开始
+        GPIO_ResetBits(GPIOB, GPIO_Pin_12);                 // 将 PB12 输出低电平，由于本实验蜂鸣器低电平触发，因此该语句使蜂鸣器发声
+        Delay_ms(500);                  // 延时 500ms，让蜂鸣器保持发声状态一段时间
 
-        GPIO_SetBits(GPIOB, GPIO_Pin_12);     // PB12 输出高电平，蜂鸣器停
-        Delay_ms(500);
-    }
-}
+        GPIO_SetBits(GPIOB, GPIO_Pin_12);                   // 将 PB12 输出高电平，由于本实验蜂鸣器低电平触发，因此该语句关闭蜂鸣器
+        Delay_ms(500);                  // 延时 500ms，让蜂鸣器保持停止状态一段时间，形成间歇鸣叫
+    }                                   // while 循环体结束，实际运行中程序不会跳出该循环
+}                                       // main 函数体结束
 ```
 
 ## 代码要点
